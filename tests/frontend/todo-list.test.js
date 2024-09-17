@@ -1,5 +1,5 @@
-import { TodoList } from './todo-list.js';
-import { Todo } from './todo-item.js';
+import { TodoList } from '../../frontend/src/js/todo-list.js';
+import { Todo } from '../../frontend/src/js/todo-item.js';
 
 describe('TodoList', () => {
   let todoList;

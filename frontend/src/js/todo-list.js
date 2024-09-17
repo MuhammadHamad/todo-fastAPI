@@ -4,7 +4,8 @@ export class TodoList {
   }
 
   addTodo(todo) {
-    this.todos.push(todo);
+    // Add the new todo to the beginning of the array
+    this.todos.unshift(todo);
   }
 
   removeTodo(index) {

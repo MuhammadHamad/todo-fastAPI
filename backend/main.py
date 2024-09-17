@@ -34,7 +34,7 @@ async def create_todo(todo: Todo):
 
 @app.get("/todos", response_model=List[Todo])
 async def get_todos():
-    return todos
+    return list(reversed(todos))  # Return the todos in reverse order
 
 @app.put("/todos/{todo_id}", response_model=Todo)
 async def update_todo(todo_id: UUID, todo_update: TodoUpdate):

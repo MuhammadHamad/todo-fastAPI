@@ -31,8 +31,7 @@ async function fetchTodos(page = 1) {
         if (!Array.isArray(todos)) {
             throw new Error('Invalid response format');
         }
-        renderTodos(todos);
-        // For now, we'll assume the total number of todos is the length of the array
+        renderTodos(todos.reverse()); // Reverse the order of todos
         updatePagination(todos.length, page);
     } catch (error) {
         console.error('Error fetching todos:', error);
@@ -41,31 +40,11 @@ async function fetchTodos(page = 1) {
 }
 
 function renderTodos(todos) {
-    todoList.innerHTML = '';
-    if (!Array.isArray(todos)) {
-        console.error('Invalid todos data:', todos);
-        return;
-    }
+    todoList.innerHTML = ''; // Clear the existing list
     todos.forEach(todo => {
-        const li = document.createElement('li');
-        li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
-        li.innerHTML = `
-            <input type="checkbox" ${todo.completed ? 'checked' : ''}>
-            <span class="todo-text">${todo.title}</span>
-            <button class="edit-btn"><i class="fas fa-edit"></i></button>
-            <button class="delete-btn"><i class="fas fa-trash"></i></button>
-        `;
-        
-        const checkbox = li.querySelector('input[type="checkbox"]');
-        checkbox.addEventListener('change', () => updateTodo(todo.id, { completed: !todo.completed }));
-        
-        const editBtn = li.querySelector('.edit-btn');
-        editBtn.addEventListener('click', () => editTodo(li, todo));
-        
-        const deleteBtn = li.querySelector('.delete-btn');
-        deleteBtn.addEventListener('click', () => deleteTodo(todo.id));
-        
-        todoList.appendChild(li);
+        const todoElement = createTodoElement(todo);
+        todoList.appendChild(todoElement);
+        attachEventListeners(todoElement);
     });
 }
 
@@ -94,11 +73,88 @@ async function addTodo(title) {
         if (!response.ok) {
             throw new Error('Failed to add todo');
         }
-        await fetchTodos(currentPage);
+        const newTodo = await response.json();
+        const todoElement = createTodoElement(newTodo);
+        todoList.insertAdjacentElement('afterbegin', todoElement);
+        attachEventListeners(todoElement);
+        todoInput.value = '';
     } catch (error) {
         console.error('Error adding todo:', error);
         showError('Failed to add todo. Please try again.');
     }
+}
+
+// Helper function to create a todo element
+function createTodoElement(todo) {
+    const li = document.createElement('li');
+    li.className = `todo-item ${todo.completed ? 'completed' : ''}`;
+    li.dataset.id = todo.id;
+    li.innerHTML = `
+        <input type="checkbox" ${todo.completed ? 'checked' : ''}>
+        <span class="todo-text">${todo.title}</span>
+        <button class="edit-btn"><i class="fas fa-edit"></i></button>
+        <button class="delete-btn"><i class="fas fa-trash"></i></button>
+    `;
+    return li;
+}
+
+function attachEventListeners(todoElement) {
+    const checkbox = todoElement.querySelector('input[type="checkbox"]');
+    const editBtn = todoElement.querySelector('.edit-btn');
+    const deleteBtn = todoElement.querySelector('.delete-btn');
+
+    checkbox.addEventListener('change', () => updateTodo(todoElement.dataset.id, { completed: checkbox.checked }));
+    editBtn.addEventListener('click', () => editTodo(todoElement));
+    deleteBtn.addEventListener('click', () => deleteTodo(todoElement.dataset.id));
+}
+
+function editTodo(li) {
+    const todoText = li.querySelector('.todo-text');
+    const editBtn = li.querySelector('.edit-btn');
+    
+    if (editBtn.classList.contains('save-btn')) {
+        return;
+    }
+    
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = todoText.textContent;
+    input.className = 'todo-text';
+    
+    todoText.replaceWith(input);
+    editBtn.innerHTML = '<i class="fas fa-save"></i>';
+    editBtn.classList.add('save-btn');
+    
+    input.focus();
+    
+    const saveEdit = async () => {
+        const newTitle = input.value.trim();
+        if (newTitle && newTitle !== todoText.textContent) {
+            await updateTodo(li.dataset.id, { title: newTitle });
+        } else {
+            const newTodoText = document.createElement('span');
+            newTodoText.className = 'todo-text';
+            newTodoText.textContent = todoText.textContent;
+            input.replaceWith(newTodoText);
+            editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+            editBtn.classList.remove('save-btn');
+        }
+    };
+    
+    editBtn.onclick = saveEdit;
+    
+    input.onkeyup = (e) => {
+        if (e.key === 'Enter') {
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            const newTodoText = document.createElement('span');
+            newTodoText.className = 'todo-text';
+            newTodoText.textContent = todoText.textContent;
+            input.replaceWith(newTodoText);
+            editBtn.innerHTML = '<i class="fas fa-edit"></i>';
+            editBtn.classList.remove('save-btn');
+        }
+    };
 }
 
 async function updateTodo(id, updates) {
@@ -116,55 +172,6 @@ async function updateTodo(id, updates) {
         console.error('Error updating todo:', error);
         showError('Failed to update todo. Please try again.');
     }
-}
-
-function editTodo(li, todo) {
-    const todoText = li.querySelector('.todo-text');
-    const editBtn = li.querySelector('.edit-btn');
-    
-    if (editBtn.classList.contains('save-btn')) {
-        return;
-    }
-    
-    const input = document.createElement('input');
-    input.type = 'text';
-    input.value = todo.title;
-    input.className = 'todo-text';
-    
-    todoText.replaceWith(input);
-    editBtn.innerHTML = '<i class="fas fa-save"></i>';
-    editBtn.classList.add('save-btn');
-    
-    input.focus();
-    
-    const saveEdit = async () => {
-        const newTitle = input.value.trim();
-        if (newTitle && newTitle !== todo.title) {
-            await updateTodo(todo.id, { title: newTitle });
-        } else {
-            const newTodoText = document.createElement('span');
-            newTodoText.className = 'todo-text';
-            newTodoText.textContent = todo.title;
-            input.replaceWith(newTodoText);
-            editBtn.innerHTML = '<i class="fas fa-edit"></i>';
-            editBtn.classList.remove('save-btn');
-        }
-    };
-    
-    editBtn.onclick = saveEdit;
-    
-    input.onkeyup = (e) => {
-        if (e.key === 'Enter') {
-            saveEdit();
-        } else if (e.key === 'Escape') {
-            const newTodoText = document.createElement('span');
-            newTodoText.className = 'todo-text';
-            newTodoText.textContent = todo.title;
-            input.replaceWith(newTodoText);
-            editBtn.innerHTML = '<i class="fas fa-edit"></i>';
-            editBtn.classList.remove('save-btn');
-        }
-    };
 }
 
 async function deleteTodo(id) {
@@ -189,14 +196,37 @@ todoForm.addEventListener('submit', (e) => {
     }
 });
 
-themeSwitch.addEventListener('change', () => {
-    document.documentElement.classList.toggle('light-mode');
+themeSwitch.addEventListener('change', function(e) {
+    if (e.target.checked) {
+        document.documentElement.classList.remove('dark-mode');
+        document.documentElement.classList.add('light-mode');
+        localStorage.setItem('theme', 'light-mode');
+    } else {
+        document.documentElement.classList.remove('light-mode');
+        document.documentElement.classList.add('dark-mode');
+        localStorage.setItem('theme', 'dark-mode');
+    }
 });
 
 // Set initial state of the theme switch
-themeSwitch.checked = !document.documentElement.classList.contains('light-mode');
+const currentTheme = localStorage.getItem('theme');
 
-fetchTodos();
+if (currentTheme) {
+    document.documentElement.classList.add(currentTheme);
+    if (currentTheme === 'light-mode') {
+        themeSwitch.checked = true;
+    }
+} else {
+    // Set dark mode as default if no theme is stored
+    document.documentElement.classList.add('dark-mode');
+    localStorage.setItem('theme', 'dark-mode');
+}
+
+// Make sure to call fetchTodos() when the page loads
+document.addEventListener('DOMContentLoaded', () => {
+    fetchTodos();
+    // ... (other initialization code)
+});
 
 // Instead, if you need these functions globally, you can attach them to the window object:
 window.showError = showError;

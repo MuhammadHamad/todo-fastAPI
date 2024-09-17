@@ -1,4 +1,4 @@
-import { Todo } from './todo-item.js';
+import { Todo } from '../../frontend/src/js/todo-item.js';
 
 describe('Todo', () => {
   test('should create a new todo item', () => {
